@@ -8,6 +8,9 @@ class VariantTest < Test::Unit::TestCase
       setup do
         @variant = Variant.create(:product => @product, :price => 11.33)
       end
+
+      # should_validate_presence_of :name, :master_price
+
       should "ignore the product's master price" do
         assert_in_delta @variant.price, 11.33, 0.00001
       end

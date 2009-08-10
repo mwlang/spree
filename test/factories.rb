@@ -64,10 +64,12 @@ end
 
 Factory.define :product do |f|
   f.name "Foo Product"
-  f.master_price 19.99
-  f.variants do |variants|
-    [Factory(:variant, :option_values => []), variants.association(:variant)]
-  end
+  f.price 19.99
+  f.sku "FP"
+end
+
+Factory.define :product_with_inventory, :parent => :product do |p|
+  p.association :inventory_unit
 end
 
 Factory.define :option_value do |f| 
@@ -81,13 +83,10 @@ Factory.define :option_type do |f|
   f.presentation "Size"
 end
 
-Factory.define :empty_variant, :class => :Variant do |f|
-  f.price 19.99
-end
-
 Factory.define :variant do |f|
   f.price 19.99
   f.option_values { [Factory(:option_value)] }  
+  f.inventory_units { [Factory(:inventory_unit)] }
 end
 
 Factory.define :inventory_unit do |f|

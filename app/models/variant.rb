@@ -2,11 +2,14 @@ class Variant < ActiveRecord::Base
   after_save :adjust_inventory
   
   belongs_to :product
+  delegate_belongs_to :product
+
   has_many :inventory_units
   has_and_belongs_to_many :option_values
 	has_many :images, :as => :viewable, :order => :position, :dependent => :destroy
 
   validate :check_price
+  validates_presence_of :price
   
   # default variant scope only lists non-deleted variants
   named_scope :active, :conditions => "deleted_at is null"
