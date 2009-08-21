@@ -32,7 +32,6 @@
       <%= calendar_date_select :product, :available_on, :style=>"width:150px" %>
     </p>
 
-    <% if @product.variant %>
     <p>
       <%= f.label :sku, t("sku") %><br />
       <%= f.text_field :sku, :size => 16 %>
@@ -41,7 +40,6 @@
       <%= f.label :on_hand, t("on_hand")%><br />
       <%= f.text_field :on_hand, :size => 4 %>        
     </p>
-    <% end %>
 
     <p>
       <%= f.label :shipping_category_id, t("shipping_categories")%><br />    

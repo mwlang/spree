@@ -26,8 +26,8 @@
 <table class="index">
   <tr>
     <th><%= t("sku") %></td>
-    <th><%= order @search, :by => :name,         :as => t("name") %></td>
-    <th><%= order @search, :by => :master_price, :as => t("master_price") %></td>
+	    <th><%= order @search, :by => :name, :as => t("name") %></td>
+	    <th><%= order @search, :by => :price, :as => t("master_price") %></td>
     <th>&nbsp;</th>
   </tr>
 <% @collection.each do |product| %>

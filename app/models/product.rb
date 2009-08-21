@@ -16,9 +16,6 @@
 # All other variants have option values and may have inventory units.
 # 
 class Product < ActiveRecord::Base
-  after_update :adjust_inventory
-  after_create :set_initial_inventory
-  
   has_many :product_option_types, :dependent => :destroy
   has_many :option_types, :through => :product_option_types
   has_many :variants, :dependent => :destroy
@@ -34,7 +31,7 @@ class Product < ActiveRecord::Base
     :class_name => 'Variant', 
     :conditions => ["is_master = ?", true], 
     :dependent => :destroy
-  delegate_belongs_to :master
+  delegate_belongs_to :master, :sku, :price, :weight, :height, :width, :depth, :is_master
   after_create :set_master_variant_defaults
 
   has_many :variants, 
@@ -55,10 +52,13 @@ class Product < ActiveRecord::Base
   
   named_scope :available, lambda { |*args| { :conditions => ["products.available_on <= ?", (args.first || Time.zone.now)] } }
 
-
   named_scope :with_property_value, lambda { |property_id, value| { :include => :product_properties, :conditions => ["product_properties.property_id = ? AND product_properties.value = ?", property_id, value] } }
 
-                 
+  def master_price
+    warn "[DEPRECATION] `Product.master_price` is deprecated.  Please use `Product.price` instead."
+    master.price
+  end
+  
   def to_param       
     return permalink unless permalink.blank?
     name.to_url
@@ -69,19 +69,16 @@ class Product < ActiveRecord::Base
     !variants.empty?
   end
 
-  # Pseduo Attribute.  Products don't really have inventory - variants do.  We want to make the variant stuff transparent
-  # in the simple cases, however, so we pretend like we're setting the inventory of the product when in fact, we're really 
-  # changing the inventory of the master variant.
   def on_hand
     master.on_hand
   end
 
-  def on_hand=(quantity)
-    @quantity = quantity
+  def on_hand=(new_level)
+    master.on_hand = new_level
   end
   
   def has_stock?
-    variants.inject(false){ |tf, v| tf ||= v.in_stock }
+    master.in_stock? || !!variants.detect{|v| v.in_stock?}
   end
 
   # Adding properties and option types on creation based on a chosen prototype
@@ -102,41 +99,8 @@ class Product < ActiveRecord::Base
   end
   
   private
-  
+
     def set_master_variant_defaults
       self.is_master = true
-    end
-  
-    def adjust_inventory
-      return if self.new_record?
-      return unless @quantity && @quantity.is_integer?    
-      new_level = @quantity.to_i
-      # don't allow negative on_hand inventory
-      return if new_level < 0
-      master.save
-      master.inventory_units.with_state("backordered").each{|iu|
-        if new_level > 0
-          iu.fill_backorder
-          new_level = new_level - 1
-        end
-        break if new_level < 1
-        }
-      
-      adjustment = new_level - on_hand
-      if adjustment > 0
-        InventoryUnit.create_on_hand(master, adjustment)
-        reload
-      elsif adjustment < 0
-        InventoryUnit.destroy_on_hand(master, adjustment.abs)
-        reload
-      end      
-    end
-  
-    def set_initial_inventory
-      return unless @quantity && @quantity.is_integer?    
-      master.save
-      level = @quantity.to_i
-      InventoryUnit.create_on_hand(master, level)
-      reload
-    end
+    end      
 end

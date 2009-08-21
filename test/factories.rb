@@ -63,13 +63,9 @@ Factory.define :address do |f|
 end
 
 Factory.define :product do |f|
-  f.name "Foo Product"
+  f.name "Foo Bar"
   f.price 19.99
-  f.sku "FP"
-end
-
-Factory.define :product_with_inventory, :parent => :product do |p|
-  p.association :inventory_unit
+  f.sku "ABC"
 end
 
 Factory.define :option_value do |f| 
@@ -86,7 +82,6 @@ end
 Factory.define :variant do |f|
   f.price 19.99
   f.option_values { [Factory(:option_value)] }  
-  f.inventory_units { [Factory(:inventory_unit)] }
 end
 
 Factory.define :inventory_unit do |f|
