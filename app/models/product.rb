@@ -33,7 +33,8 @@ class Product < ActiveRecord::Base
     :dependent => :destroy
   delegate_belongs_to :master, :sku, :price, :weight, :height, :width, :depth, :is_master
   after_create :set_master_variant_defaults
-
+  after_save :set_master_on_hand_to_zero_when_product_has_variants
+  
   has_many :variants, 
     :conditions => ["is_master = ?", false], 
     :dependent => :destroy
@@ -70,10 +71,11 @@ class Product < ActiveRecord::Base
   end
 
   def on_hand
-    master.on_hand
+    has_variants? ? variants.inject(0){|sum, v| sum + v.on_hand} : master.on_hand
   end
 
   def on_hand=(new_level)
+    raise "cannot set on_hand of product with variants" if has_variants?
     master.on_hand = new_level
   end
   
@@ -100,6 +102,10 @@ class Product < ActiveRecord::Base
   
   private
 
+    def set_master_on_hand_to_zero_when_product_has_variants
+      master.on_hand = 0 if has_variants?
+    end
+    
     def set_master_variant_defaults
       self.is_master = true
     end      
