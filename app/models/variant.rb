@@ -53,6 +53,11 @@ class Variant < ActiveRecord::Base
   def in_stock?
     on_hand > 0
   end
+
+  def in_stock
+    warn "[DEPRECATION] `Variant.in_stock` is deprecated.  Please use `Variant.in_stock?` instead."
+    self.in_stock?
+  end
   
   def self.additional_fields
     @fields
@@ -62,8 +67,8 @@ class Variant < ActiveRecord::Base
     @fields = new_fields
   end
     
-  def orderable?
-    self.in_stock || ( !self.in_stock && self.allow_backordering) || Spree::Config[:allow_backorders]
+  def available?
+    self.in_stock? || Spree::Config[:allow_backorders]
   end
 	
 	def options_text
@@ -72,12 +77,10 @@ class Variant < ActiveRecord::Base
 
   private
   
-    # if no variant price has been set, set it to be equivalent to the product.price
-    def check_price
-      self.price = product.price if self.price.nil? 
-      if self.price.nil?
-        errors.add_to_base("Must supply price for variant or master.price for product.")
-        return false
-      end
-    end    
+  def check_price
+    if self.price.nil?
+      raise "Must supply price for variant or master.price for product." if self == product.master
+      self.price = product.master.price
+    end
+  end    
 end

@@ -13,6 +13,9 @@
 # Reusable context taken from:
 #   http://www.viget.com/extend/reusing-contexts-in-shoulda-with-context-macros/
 #
+# Additionally, some basic tests for Product.new vs. Product.create are defined to test 
+# that Product creation vs instantiated behave the normal "rails way"
+#
 require 'test_helper'
 
 class ProductTest < Test::Unit::TestCase
@@ -137,121 +140,125 @@ class ProductTest < Test::Unit::TestCase
     end
   end
   
-  context "New Product" do
-    setup do
-      @product = Factory.build(:product)
+    context "New Product" do
+      setup do
+        @product = Factory.build(:product)
+      end
+      should_not_change "Product.count"
+      should_not_change "Variant.count"
+      should "not have a product id" do
+        assert @product.id.nil?
+      end
     end
-    should_not_change "Product.count"
-    should_not_change "Variant.count"
-    should "not have a product id" do
-      assert @product.id.nil?
+      
+    context "New Product instantiated with on_hand" do
+      setup do
+        @product = Product.new(:name => "fubaz", :price => "10.0", :on_hand => 5)
+      end
+      should "not have a product id" do
+        assert @product.id.nil?
+      end
+      should_not_change "Product.count"
+      should_not_change "Variant.count"
+      should_not_change "InventoryUnit.count"
+      should "have a Product class" do
+        assert @product.is_a?(Product)
+      end
+      should "have specified on_hand" do 
+        assert_equal 5, @product.on_hand
+      end
     end
-  end
     
-  context "New Product instantiated with on_hand" do
-    setup do
-      @product = Product.new(:name => "fubaz", :price => "10.0", :on_hand => 5)
+    context "Product created with on_hand" do
+      setup do
+        @product = Product.create(:name => "fubaz", :price => "10.0", :on_hand => 7)
+      end
+      teardown do
+        @product.master.inventory_units.destroy_all
+        @product.destroy
+      end
+      should_change "InventoryUnit.count", :by => 7
     end
-    should "not have a product id" do
-      assert @product.id.nil?
+    
+    context_created_product do
+      context_without_variants do
+        context_without_inventory_units do 
+        end
+        context "with inventory units" do 
+          setup { @product.master.inventory_units << Factory(:inventory_unit) }
+          teardown { @product.master.inventory_units.destroy_all }
+          should_pass_inventory_tests
+          should "be true for has_stock?" do
+            assert @product.has_stock?
+            assert @product.master.in_stock?
+          end 
+          context "when on_hand is increased" do
+            setup { @product.update_attribute("on_hand", 5) }
+            should_change "InventoryUnit.count", :by => 4
+            should "have the specified on_hand" do
+              assert_equal 5, @product.on_hand
+            end
+          end
+          context "when on_hand is decreased" do
+            setup { @product.on_hand = 3 }
+            should_change "InventoryUnit.count", :by => 2
+            should "have the specified on_hand" do
+              assert_equal 3, @product.on_hand
+            end
+          end
+        end
+      end
     end
-    should_not_change "Product.count"
-    should_not_change "Variant.count"
-    should_not_change "InventoryUnit.count"
-    should "have a Product class" do
-      assert @product.is_a?(Product)
+      
+    context_created_product do
+      context_with_variants do
+        context_without_inventory_units 
+        context "with inventory units" do 
+          setup do
+            @first_variant.inventory_units << Factory(:inventory_unit)
+          end
+          teardown { @first_variant.inventory_units.destroy_all }
+          should_pass_inventory_tests
+          should "be true for has_stock?" do
+            assert !@product.master.in_stock?
+            assert @first_variant.in_stock?
+            assert @product.has_stock?
+          end 
+          should "have one inventory unit initially" do 
+            assert 1, @first_variant.inventory_units.count
+          end
+          context "when on_hand is increased" do
+            setup { @first_variant.on_hand = 5 }
+            should_change "InventoryUnit.count", :by => 4
+            should "have the specified on_hand" do
+              assert_equal 5, @product.on_hand
+            end
+          end
+          context "when on_hand is decreased" do
+            setup { @first_variant.on_hand = 3 }
+            should_change "InventoryUnit.count", :by => 2
+            should "have the specified on_hand" do
+              assert_equal 3, @product.on_hand
+            end
+          end
+        end
+      end
     end
-    should "have specified on_hand" do 
-      assert_equal 5, @product.on_hand
-    end
-  end
   
-  context "Product created with on_hand" do
-    setup do
-      @product = Product.create(:name => "fubaz", :price => "10.0", :on_hand => 7)
-    end
-    teardown do
-      @product.master.inventory_units.destroy_all
-      @product.destroy
-    end
-    should_change "InventoryUnit.count", :by => 7
-  end
-
-  context_created_product do
-    context_without_variants do
-      context_without_inventory_units do 
-      end
-      context "with inventory units" do 
-        setup { @product.master.inventory_units << Factory(:inventory_unit) }
-        teardown { @product.master.inventory_units.destroy_all }
-        should_pass_inventory_tests
-        should "be true for has_stock?" do
-          assert @product.has_stock?
-          assert @product.master.in_stock?
-        end 
-        context "when on_hand is increased" do
-          setup { @product.update_attribute("on_hand", 5) }
-          should_change "InventoryUnit.count", :by => 4
-          should "have the specified on_hand" do
-            assert_equal 5, @product.on_hand
-          end
-        end
-        context "when on_hand is decreased" do
-          setup { @product.on_hand = 3 }
-          should_change "InventoryUnit.count", :by => 2
-          should "have the specified on_hand" do
-            assert_equal 3, @product.on_hand
-          end
-        end
-      end
-    end
-  end
-    
-  context_created_product do
-    context_with_variants do
-      context_without_inventory_units 
-      context "with inventory units" do 
-        setup do
-          @first_variant.inventory_units << Factory(:inventory_unit)
-        end
-        teardown { @first_variant.inventory_units.destroy_all }
-        should_pass_inventory_tests
-        should "be true for has_stock?" do
-          assert !@product.master.in_stock?
-          assert @first_variant.in_stock?
-          assert @product.has_stock?
-        end 
-        should "have one inventory unit initially" do 
-          assert 1, @first_variant.inventory_units.count
-        end
-        context "when on_hand is increased" do
-          setup { @first_variant.on_hand = 5 }
-          should_change "InventoryUnit.count", :by => 4
-          should "have the specified on_hand" do
-            assert_equal 5, @product.on_hand
-          end
-        end
-        context "when on_hand is decreased" do
-          setup { @first_variant.on_hand = 3 }
-          should_change "InventoryUnit.count", :by => 2
-          should "have the specified on_hand" do
-            assert_equal 3, @product.on_hand
-          end
-        end
-      end
-    end
-  end
-
   context "Product.available" do
     setup do
       5.times { Factory(:product, :available_on => Time.now - 1.day) }
-      @unavaiable = Factory(:product, :available_on => Time.now + 2.weeks) 
+      Factory(:product, :available_on => Time.now - 15.minutes) 
+      @future_product = Factory.create(:product, :available_on => Time.now + 2.weeks) 
+    end
+    teardown do 
+      Product.available.destroy_all
+      @future_product.destroy
     end
     should "only include available products" do
-      assert_equal 5, Product.available.size
-      assert !Product.available.include?(@unavailable)
+      assert_equal 6, Product.available.size
+      assert !Product.available.include?(@future_product)
     end
-    teardown { Product.available.destroy_all }
   end
 
 end

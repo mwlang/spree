@@ -39,7 +39,8 @@ class Product < ActiveRecord::Base
     :conditions => ["is_master = ?", false], 
     :dependent => :destroy
 
-  validates_presence_of :name
+    validates_presence_of :name
+    validates_presence_of :price
 
   accepts_nested_attributes_for :product_properties
   
@@ -57,7 +58,22 @@ class Product < ActiveRecord::Base
 
   def master_price
     warn "[DEPRECATION] `Product.master_price` is deprecated.  Please use `Product.price` instead."
-    master.price
+    self.price
+  end
+  
+  def master_price=(value)
+    warn "[DEPRECATION] `Product.master_price=` is deprecated.  Please use `Product.price=` instead."
+    self.price = value
+  end
+  
+  def variants?
+    warn "[DEPRECATION] `Product.variants?` is deprecated.  Please use `Product.has_variants?` instead."
+    self.has_variants?
+  end
+  
+  def variant
+    warn "[DEPRECATION] `Product.variant` is deprecated.  Please use `Product.master` instead."
+    self.master
   end
   
   def to_param       
@@ -107,6 +123,6 @@ class Product < ActiveRecord::Base
     end
     
     def set_master_variant_defaults
-      self.is_master = true
+      master.is_master = true
     end      
 end
