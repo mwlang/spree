@@ -8,12 +8,14 @@
 # Every product has one master variant, which stores master price and sku, size and weight, etc.
 # The master variant does not have option values associated with it.
 # Price, SKU, size, weight, etc. are all delegated to the master variant.
+# Contains on_hand inventory levels only when there are no variants for the product.
 #
 # VARIANTS
 # All variants can access the product properties directly (via reverse delegation).
 # Inventory units are tied to Variant.
 # The master variant can have inventory units, but not option values.
 # All other variants have option values and may have inventory units.
+# Sum of on_hand each variant's inventory level determine "on_hand" level for the product.
 # 
 class Product < ActiveRecord::Base
   has_many :product_option_types, :dependent => :destroy
@@ -56,6 +58,12 @@ class Product < ActiveRecord::Base
 
   named_scope :with_property_value, lambda { |property_id, value| { :include => :product_properties, :conditions => ["product_properties.property_id = ? AND product_properties.value = ?", property_id, value] } }
 
+  # ----------------------------------------------------------------------------------------------------------
+  #
+  # The following methods are deprecated and will be removed in a future version of Spree
+  # 
+  # ----------------------------------------------------------------------------------------------------------
+  
   def master_price
     warn "[DEPRECATION] `Product.master_price` is deprecated.  Please use `Product.price` instead."
     self.price
@@ -86,21 +94,23 @@ class Product < ActiveRecord::Base
     !variants.empty?
   end
 
+  # returns the number of inventory units "on_hand" for this product
   def on_hand
     has_variants? ? variants.inject(0){|sum, v| sum + v.on_hand} : master.on_hand
   end
 
+  # adjusts the "on_hand" inventory level for the product up or down to match the given new_level
   def on_hand=(new_level)
     raise "cannot set on_hand of product with variants" if has_variants?
     master.on_hand = new_level
   end
-  
+
+  # Returns true if there are inventory units (any variant) with "on_hand" state for this product
   def has_stock?
     master.in_stock? || !!variants.detect{|v| v.in_stock?}
   end
 
   # Adding properties and option types on creation based on a chosen prototype
-  
   attr_reader :prototype_id
   def prototype_id=(value)
     @prototype_id = value.to_i
@@ -118,10 +128,13 @@ class Product < ActiveRecord::Base
   
   private
 
+    # the master on_hand is meaningless once a product has variants as the inventory
+    # units are now "contained" within the product variants
     def set_master_on_hand_to_zero_when_product_has_variants
       master.on_hand = 0 if has_variants?
     end
-    
+
+    # ensures the master variant is flagged as such
     def set_master_variant_defaults
       master.is_master = true
     end      

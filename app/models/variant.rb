@@ -19,10 +19,12 @@ class Variant < ActiveRecord::Base
               {:name => 'Width',  :only => [:variant], :format => "%.2f"},
               {:name => 'Depth',  :only => [:variant], :format => "%.2f"} ]
 
+  # Returns number of inventory units for this variant (new records haven't been saved to database, yet)
   def on_hand
     new_record? ? inventory_units.size : inventory_units.with_state("on_hand").size
   end
 
+  # Adjusts the inventory units to match the given new level.
   def on_hand=(new_level)
     delta_units = new_level.to_i - on_hand
 
@@ -45,11 +47,13 @@ class Variant < ActiveRecord::Base
       end
     end      
   end
-  
+
+  # returns number of units currently on backorder for this variant.
   def on_backorder
     inventory_units.with_state("backordered").size
   end
-  
+
+  # returns true if at least one inventory unit of this variant is "on_hand"
   def in_stock?
     on_hand > 0
   end
@@ -66,7 +70,8 @@ class Variant < ActiveRecord::Base
   def self.additional_fields=(new_fields)
     @fields = new_fields
   end
-    
+
+  # returns true if this variant is allowed to be placed on a new order
   def available?
     self.in_stock? || Spree::Config[:allow_backorders]
   end
@@ -76,7 +81,8 @@ class Variant < ActiveRecord::Base
 	end
 
   private
-  
+
+  # Ensures a new variant takes the product master price when price is not supplied
   def check_price
     if self.price.nil?
       raise "Must supply price for variant or master.price for product." if self == product.master
