@@ -10,7 +10,7 @@ class AddIsMasterToVariants < ActiveRecord::Migration
       # select first variant of each product as "master" and flag it in the database
       sorted_variants = variants.sort{|a,b| a.product_id <=> b.product_id}.sort{|a,b| a.id <=> b.id}
       master_variants = sorted_variants.inject([]) {|m, v| m << v unless m.detect{|d| d.product_id == v.product_id}; m}
-      master_variants.each{|v| v.update_attributes(:is_master => true, :price => v.product.master_price)}
+      master_variants.each{|v| v.update_attributes(:is_master => true, :price => v.product.attributes["master_price"])}
     end
   end
 
